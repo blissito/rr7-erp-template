@@ -1,0 +1,14 @@
+{
+  "deploy": {
+    "project": "rr7-erp-template",
+    "exclude": [
+      "node_modules",
+      ".git",
+      ".env",
+      "*.test.ts",
+      "*.test.tsx"
+    ],
+    "include": [],
+    "entrypoint": "server.ts"
+  }
+}

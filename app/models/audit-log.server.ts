@@ -1,105 +1,66 @@
-import { Schema, model, models, type Document, type Types } from "mongoose";
+import { db } from "~/db";
+import { auditLogs, users } from "~/db/schema";
+import { eq, desc } from "drizzle-orm";
 
-export interface IAuditLog extends Document {
-  _id: Types.ObjectId;
-  userId: Types.ObjectId;
-  userEmail: string;
-  action: string;
-  resource: string;
-  resourceId?: string;
-  details?: Record<string, unknown>;
-  ipAddress?: string;
-  userAgent?: string;
-  createdAt: Date;
+export interface IAuditLog {
+  id: string;
+  userId: string;
+  accion: string;
+  entidad: string;
+  entidadId?: string;
+  detalles?: string;
+  fecha: Date;
 }
 
-const auditLogSchema = new Schema<IAuditLog>(
-  {
-    userId: {
-      type: Schema.Types.ObjectId,
-      required: true,
-      ref: "User",
-    },
-    userEmail: {
-      type: String,
-      required: true,
-    },
-    action: {
-      type: String,
-      required: true,
-      enum: [
-        "create",
-        "update",
-        "delete",
-        "login",
-        "logout",
-        "toggle_status",
-        "assign_membership",
-        "enroll",
-        "access_granted",
-        "access_denied",
-      ],
-    },
-    resource: {
-      type: String,
-      required: true,
-      enum: [
-        "user",
-        "member",
-        "class",
-        "instructor",
-        "schedule",
-        "membership",
-        "enrollment",
-        "session",
-      ],
-    },
-    resourceId: {
-      type: String,
-    },
-    details: {
-      type: Schema.Types.Mixed,
-    },
-    ipAddress: {
-      type: String,
-    },
-    userAgent: {
-      type: String,
-    },
+export const AuditLog = {
+  async create(data: Omit<typeof auditLogs.$inferInsert, "id">) {
+    const [log] = await db.insert(auditLogs).values(data).returning();
+    return log;
   },
-  {
-    timestamps: { createdAt: true, updatedAt: false },
-  }
-);
 
-// Índices para búsquedas eficientes
-auditLogSchema.index({ userId: 1, createdAt: -1 });
-auditLogSchema.index({ resource: 1, action: 1, createdAt: -1 });
-auditLogSchema.index({ createdAt: -1 });
+  async find(query: any = {}) {
+    return await db
+      .select({
+        log: auditLogs,
+        user: users,
+      })
+      .from(auditLogs)
+      .leftJoin(users, eq(auditLogs.userId, users.id))
+      .orderBy(desc(auditLogs.fecha))
+      .limit(query.limit || 100);
+  },
 
-export const AuditLog = models.AuditLog || model<IAuditLog>("AuditLog", auditLogSchema);
+  populate(field: string) {
+    return this;
+  },
 
-// Helper para crear entradas de auditoría
+  sort(field: string) {
+    return this;
+  },
+
+  limit(n: number) {
+    return this;
+  },
+};
+
+// Helper function for logging audit actions
 export async function logAudit(
   request: Request,
-  user: { userId: string; email: string },
-  action: IAuditLog["action"],
-  resource: IAuditLog["resource"],
-  resourceId?: string,
-  details?: Record<string, unknown>
-): Promise<void> {
-  const forwarded = request.headers.get("x-forwarded-for");
-  const ipAddress = forwarded?.split(",")[0]?.trim() || "unknown";
-  const userAgent = request.headers.get("user-agent") || undefined;
-
-  await AuditLog.create({
-    userId: user.userId,
-    userEmail: user.email,
-    action,
-    resource,
-    resourceId,
-    details,
-    ipAddress,
-    userAgent,
-  });
+  user: { id: string; email: string },
+  accion: string,
+  entidad: string,
+  entidadId: string,
+  detalles: any = {}
+) {
+  try {
+    await AuditLog.create({
+      userId: user.id,
+      accion,
+      entidad,
+      entidadId,
+      detalles: JSON.stringify(detalles),
+    });
+  } catch (error) {
+    console.error("Error logging audit:", error);
+  }
 }

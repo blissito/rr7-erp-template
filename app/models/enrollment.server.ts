@@ -1,50 +1,48 @@
-import { Schema, model, models, type Document, type Types } from "mongoose";
+import { db } from "~/db";
+import { enrollments, members, classes } from "~/db/schema";
+import { eq } from "drizzle-orm";
 
-export interface IEnrollment extends Document {
-  _id: Types.ObjectId;
-  memberId: Types.ObjectId;
-  scheduleId: Types.ObjectId;
+export interface IEnrollment {
+  id: string;
+  memberId: string;
+  classId: string;
   fechaInscripcion: Date;
-  estado: "inscrito" | "lista_espera" | "cancelado";
-  createdBy: Types.ObjectId;
+  activo: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
 
-const enrollmentSchema = new Schema<IEnrollment>(
-  {
-    memberId: {
-      type: Schema.Types.ObjectId,
-      ref: "Member",
-      required: [true, "El miembro es requerido"],
-    },
-    scheduleId: {
-      type: Schema.Types.ObjectId,
-      ref: "Schedule",
-      required: [true, "El horario es requerido"],
-    },
-    fechaInscripcion: {
-      type: Date,
-      default: Date.now,
-    },
-    estado: {
-      type: String,
-      enum: ["inscrito", "lista_espera", "cancelado"],
-      default: "inscrito",
-    },
-    createdBy: {
-      type: Schema.Types.ObjectId,
-      ref: "User",
-      required: true,
-    },
+export const Enrollment = {
+  async find(query: { classId?: string; activo?: boolean } = {}) {
+    let where = query.activo !== undefined ? eq(enrollments.activo, query.activo) : undefined;
+
+    if (query.classId) {
+      where = eq(enrollments.classId, query.classId);
+    }
+
+    const result = await db
+      .select({
+        enrollment: enrollments,
+        member: members,
+      })
+      .from(enrollments)
+      .leftJoin(members, eq(enrollments.memberId, members.id))
+      .where(where);
+
+    return result;
   },
-  {
-    timestamps: true,
-  }
-);
 
-enrollmentSchema.index({ memberId: 1, scheduleId: 1 }, { unique: true });
-enrollmentSchema.index({ scheduleId: 1, estado: 1 });
+  async create(data: Omit<typeof enrollments.$inferInsert, "id" | "createdAt" | "updatedAt">) {
+    const [enrollment] = await db.insert(enrollments).values(data).returning();
+    return enrollment;
+  },
 
-export const Enrollment =
-  models.Enrollment || model<IEnrollment>("Enrollment", enrollmentSchema);
+  async countDocuments() {
+    const result = await db.select().from(enrollments);
+    return result.length;
+  },
+
+  populate(field: string) {
+    return this;
+  },
+};

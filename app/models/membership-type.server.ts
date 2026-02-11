@@ -1,52 +1,48 @@
-import { Schema, model, models, type Document, type Types } from "mongoose";
+import { db } from "~/db";
+import { membershipTypes } from "~/db/schema";
+import { eq } from "drizzle-orm";
 
-export interface IMembershipType extends Document {
-  _id: Types.ObjectId;
+export interface IMembershipType {
+  id: string;
   nombre: string;
-  duracionDias: number;
-  precio: number;
   descripcion?: string;
-  accesosIncluidos?: number;
+  duracion: number;
+  precio: number;
+  color: string;
   activo: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
 
-const membershipTypeSchema = new Schema<IMembershipType>(
-  {
-    nombre: {
-      type: String,
-      required: [true, "El nombre es requerido"],
-      trim: true,
-    },
-    duracionDias: {
-      type: Number,
-      required: [true, "La duración es requerida"],
-      min: [1, "La duración mínima es 1 día"],
-    },
-    precio: {
-      type: Number,
-      required: [true, "El precio es requerido"],
-      min: [0, "El precio no puede ser negativo"],
-    },
-    descripcion: {
-      type: String,
-      trim: true,
-    },
-    accesosIncluidos: {
-      type: Number,
-      default: null,
-    },
-    activo: {
-      type: Boolean,
-      default: true,
-    },
+export const MembershipType = {
+  async find(query: { activo?: boolean } = {}) {
+    if (query.activo !== undefined) {
+      return await db.select().from(membershipTypes).where(eq(membershipTypes.activo, query.activo));
+    }
+    return await db.select().from(membershipTypes);
   },
-  {
-    timestamps: true,
-  }
-);
 
-export const MembershipType =
-  models.MembershipType ||
-  model<IMembershipType>("MembershipType", membershipTypeSchema);
+  async findById(id: string) {
+    const [type] = await db.select().from(membershipTypes).where(eq(membershipTypes.id, id));
+    return type;
+  },
+
+  async create(data: Omit<typeof membershipTypes.$inferInsert, "id" | "createdAt" | "updatedAt">) {
+    const [type] = await db.insert(membershipTypes).values(data).returning();
+    return type;
+  },
+
+  async findByIdAndUpdate(id: string, data: Partial<typeof membershipTypes.$inferInsert>) {
+    const [type] = await db
+      .update(membershipTypes)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(membershipTypes.id, id))
+      .returning();
+    return type;
+  },
+
+  async findByIdAndDelete(id: string) {
+    const [type] = await db.delete(membershipTypes).where(eq(membershipTypes.id, id)).returning();
+    return type;
+  },
+};

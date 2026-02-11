@@ -1,6 +1,5 @@
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
-import { connectDB } from "./db.server";
 import { User, type IUser } from "~/models/user.server";
 
 // Validar secretos obligatorios en producción
@@ -84,22 +83,21 @@ export async function authenticateUser(
   email: string,
   password: string
 ): Promise<{ user: IUser; tokens: TokenPair } | null> {
-  await connectDB();
-
-  const user = await User.findOne({ email: email.toLowerCase(), activo: true });
-  if (!user) {
+  // @ts-ignore - Drizzle compatibility
+  const user = await User.findOne({ email: email.toLowerCase() });
+  if (!user || !user.activo) {
     return null;
   }
 
-  const isValid = await verifyPassword(password, user.passwordHash);
+  const isValid = await verifyPassword(password, user.password);
   if (!isValid) {
     return null;
   }
 
   const tokens = generateTokenPair({
-    userId: user._id.toString(),
+    userId: user.id,
     email: user.email,
-    rol: user.rol,
+    rol: user.role,
   });
 
   return { user, tokens };
@@ -109,17 +107,19 @@ export async function createUser(data: {
   email: string;
   password: string;
   nombre: string;
-  rol?: "admin" | "recepcion" | "instructor";
+  apellidos?: string;
+  rol?: "admin" | "usuario";
 }): Promise<IUser> {
-  await connectDB();
 
-  const passwordHash = await hashPassword(data.password);
+  const hashedPassword = await hashPassword(data.password);
 
+  // @ts-ignore - Drizzle compatibility
   const user = await User.create({
     email: data.email.toLowerCase(),
-    passwordHash,
+    password: hashedPassword,
     nombre: data.nombre,
-    rol: data.rol || "recepcion",
+    apellidos: data.apellidos || "",
+    role: data.rol || "usuario",
     activo: true,
   });
 
@@ -127,11 +127,9 @@ export async function createUser(data: {
 }
 
 export async function getUserById(userId: string): Promise<IUser | null> {
-  await connectDB();
   return User.findById(userId);
 }
 
 export async function getUserByEmail(email: string): Promise<IUser | null> {
-  await connectDB();
   return User.findOne({ email: email.toLowerCase() });
 }

@@ -1,11 +1,16 @@
 # rr7-erp-template
 
+[![React Router](https://img.shields.io/badge/React%20Router-v7-CA4245?logo=react-router)](https://reactrouter.com)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.7-3178C6?logo=typescript)](https://www.typescriptlang.org/)
+[![Node.js](https://img.shields.io/badge/Node.js-18+-339933?logo=node.js)](https://nodejs.org)
+
 Template base para sistemas ERP con React Router v7 + MongoDB + Tailwind CSS.
 
 ## Stack
 
 - **Framework:** React Router v7 (Remix)
-- **Base de datos:** MongoDB + Mongoose
+- **Runtime:** Node.js 18+ / Deno
+- **Base de datos:** PostgreSQL (Deno Deploy) + Drizzle ORM
 - **Estilos:** Tailwind CSS
 - **Autenticacion:** JWT + Cookies seguras
 - **Validacion:** Zod
@@ -13,8 +18,8 @@ Template base para sistemas ERP con React Router v7 + MongoDB + Tailwind CSS.
 ## Inicio Rapido
 
 ```bash
-# 1. Usar como template o clonar
-npx degit usuario/rr7-erp-template mi-erp
+# 1. Clonar o usar como template
+git clone https://github.com/blissito/rr7-erp-template.git mi-erp
 cd mi-erp
 
 # 2. Instalar dependencias
@@ -22,11 +27,28 @@ npm install
 
 # 3. Configurar variables de entorno
 cp .env.example .env
-# Editar .env con tus valores
+# Editar .env con tus valores (MongoDB, JWT secrets, etc.)
 
-# 4. Ejecutar
+# 4. Ejecutar en desarrollo
 npm run dev
 ```
+
+5. Configurar base de datos
+```bash
+# Opción A: Desarrollo local con PostgreSQL
+# Instala PostgreSQL y crea una base de datos
+# Actualiza DATABASE_URL en .env
+
+# Opción B: Usar Deno Deploy
+# 1. Crea un proyecto en https://dash.deno.com
+# 2. Habilita PostgreSQL en tu proyecto
+# 3. Copia el DATABASE_URL a tu .env
+
+# Aplicar schema a la base de datos
+npm run db:push
+```
+
+Abre http://localhost:3000 y listo! 🚀
 
 ## Personalizacion
 
@@ -34,12 +56,16 @@ npm run dev
 
 | Variable | Descripcion | Default |
 |----------|-------------|---------|
-| `APP_NAME` | Nombre del sistema | RR7 ERP |
-| `APP_DESCRIPTION` | Descripcion en login | Sistema de gestion empresarial |
-| `MONGODB_URI` | URL de MongoDB | localhost:27017/erp |
+| `DATABASE_URL` | URL de PostgreSQL | postgresql://localhost:5432/erp |
 | `JWT_SECRET` | Secreto para tokens JWT | (requerido en prod) |
 | `SESSION_SECRET` | Secreto para cookies | (requerido en prod) |
+| `APP_NAME` | Nombre del sistema | RR7 ERP |
+| `APP_DESCRIPTION` | Descripcion en login | Sistema de gestion empresarial |
 | `ENABLE_CARRIL` | Campo carril en horarios | false |
+
+**📚 Guías detalladas:**
+- [DATABASE.md](./DATABASE.md) - Configurar PostgreSQL (local o Deno Deploy)
+- [DENO_SETUP.md](./DENO_SETUP.md) - Deploy completo en Deno Deploy
 
 ### Colores
 
@@ -82,20 +108,37 @@ export const APP_CONFIG = {
 };
 ```
 
+## Base de Datos
+
+El sistema incluye **10 tablas** completamente configuradas:
+
+| Tabla | Descripción | Emoji |
+|-------|-------------|:-----:|
+| **users** | Autenticación y usuarios del sistema | 👤 |
+| **members** | Clientes/Miembros del gimnasio/club | 🏃 |
+| **classes** | Clases y actividades disponibles | 📚 |
+| **instructors** | Instructores y sus especialidades | 👨‍🏫 |
+| **schedules** | Horarios semanales de clases | 📅 |
+| **membership_types** | Tipos de membresías disponibles | 💎 |
+| **member_memberships** | Membresías activas de cada miembro | 🎟️ |
+| **enrollments** | Inscripciones a clases específicas | ✍️ |
+| **access_logs** | Control de entradas/salidas | 🚪 |
+| **audit_logs** | Auditoría de acciones del sistema | 📝 |
+
 ## Modulos Incluidos
 
-- **Autenticacion** - JWT con access + refresh tokens
-- **Gestion de usuarios** - CRUD con roles (admin/usuario)
-- **Rate limiting** - Proteccion contra fuerza bruta en login
-- **Miembros/Clientes** - CRUD completo con busqueda
-- **Clases/Actividades** - Catalogo con niveles y capacidad
-- **Horarios** - Calendario semanal interactivo
-- **Instructores** - Gestion con especialidades
-- **Membresias/Suscripciones** - Tipos, asignacion y renovacion
-- **Control de acceso** - Registro de entradas/salidas
-- **Dashboard** - Estadisticas en tiempo real
-- **Reportes** - Metricas de ingresos y actividad
-- **Auditoria** - Log de acciones de usuarios
+- 👤 **Autenticacion** - JWT con access + refresh tokens
+- 👥 **Gestion de usuarios** - CRUD con roles (admin/usuario)
+- 🛡️ **Rate limiting** - Proteccion contra fuerza bruta en login
+- 🏃 **Miembros/Clientes** - CRUD completo con busqueda
+- 📚 **Clases/Actividades** - Catalogo con niveles y capacidad
+- 📅 **Horarios** - Calendario semanal interactivo
+- 👨‍🏫 **Instructores** - Gestion con especialidades
+- 💎 **Membresias/Suscripciones** - Tipos, asignacion y renovacion
+- 🚪 **Control de acceso** - Registro de entradas/salidas
+- 📊 **Dashboard** - Estadisticas en tiempo real
+- 📈 **Reportes** - Metricas de ingresos y actividad
+- 📝 **Auditoria** - Log de acciones de usuarios
 
 ## Seguridad
 
@@ -136,7 +179,16 @@ app/
 ## Scripts
 
 ```bash
-npm run dev       # Desarrollo con hot reload
+# Desarrollo
+npm run dev       # Desarrollo con hot reload (puerto 3000)
+
+# Base de datos (Drizzle)
+npm run db:push   # Aplicar schema a la DB (desarrollo)
+npm run db:generate  # Generar migraciones
+npm run db:migrate   # Ejecutar migraciones
+npm run db:studio    # Abrir Drizzle Studio (GUI)
+
+# Producción
 npm run build     # Build para produccion
 npm run start     # Ejecutar build de produccion
 npm run typecheck # Verificar tipos de TypeScript
@@ -144,6 +196,22 @@ npm run seed      # Poblar base de datos con datos de ejemplo
 ```
 
 ## Despliegue
+
+### Deno Deploy (Recomendado) 🚀
+
+Deploy en edge con PostgreSQL incluido y cold starts ultra-rápidos:
+
+**Ver guía completa:** [DENO_SETUP.md](./DENO_SETUP.md)
+
+```bash
+# Quick start
+1. Crea proyecto en https://dash.deno.com
+2. Habilita PostgreSQL en Settings
+3. Configura env vars
+4. Deploy desde GitHub o deployctl
+```
+
+**Free tier:** 100k requests/día + PostgreSQL incluido
 
 ### Fly.io
 
@@ -184,6 +252,16 @@ docker run -p 3000:3000 -e MONGODB_URI=... mi-erp
 1. Agregar variable en `app/config/app.config.ts`
 2. Agregar variable de entorno en `.env.example`
 3. Condicionar UI con `APP_CONFIG.domainFields.tuCampo`
+
+## Opciones Avanzadas
+
+### Deploy con Deno Deploy
+
+Si quieres explorar deployment en edge con Deno Deploy, revisa la documentación avanzada:
+- [docs/advanced/QUICKSTART_DENO.md](./docs/advanced/QUICKSTART_DENO.md)
+- [docs/advanced/DENO_DEPLOY.md](./docs/advanced/DENO_DEPLOY.md)
+
+El proyecto incluye configuración para Deno Deploy pero funciona perfectamente con npm/Node.js tradicional.
 
 ## Licencia
 

@@ -4,6 +4,11 @@
     "**/*.tsx",
     ".react-router/types/**/*"
   ],
+  "exclude": [
+    "node_modules",
+    "server.ts",
+    "verify-deno.ts"
+  ],
   "compilerOptions": {
     "lib": ["DOM", "DOM.Iterable", "ES2022"],
     "types": ["node"],

@@ -1,26 +1,11 @@
-import { Types } from "mongoose";
+// Utility for ID validation (PostgreSQL UUID instead of MongoDB ObjectId)
 
-/**
- * Valida si un string es un ObjectId válido de MongoDB
- */
-export function isValidObjectId(id: string | undefined | null): boolean {
-  if (!id) return false;
-  return Types.ObjectId.isValid(id) && new Types.ObjectId(id).toString() === id;
+export function validateObjectId(id: string): boolean {
+  // UUID v4 validation
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  return uuidRegex.test(id);
 }
 
-/**
- * Valida el ObjectId y lanza error si es inválido
- */
-export function validateObjectId(id: string | undefined | null, fieldName = "ID"): string {
-  if (!isValidObjectId(id)) {
-    throw new Response(`${fieldName} inválido`, { status: 400 });
-  }
-  return id!;
-}
-
-/**
- * Convierte string a ObjectId de forma segura
- */
-export function toObjectId(id: string): Types.ObjectId {
-  return new Types.ObjectId(id);
+export function isValidObjectId(id: string): boolean {
+  return validateObjectId(id);
 }

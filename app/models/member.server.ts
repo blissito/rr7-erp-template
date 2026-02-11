@@ -1,7 +1,9 @@
-import { Schema, model, models, type Document, type Types } from "mongoose";
+import { db } from "~/db";
+import { members } from "~/db/schema";
+import { eq, ilike, or, sql } from "drizzle-orm";
 
-export interface IMember extends Document {
-  _id: Types.ObjectId;
+export interface IMember {
+  id: string;
   numeroMiembro: string;
   nombre: string;
   apellidos: string;
@@ -15,62 +17,68 @@ export interface IMember extends Document {
   updatedAt: Date;
 }
 
-const memberSchema = new Schema<IMember>(
-  {
-    numeroMiembro: {
-      type: String,
-      required: [true, "El número de miembro es requerido"],
-      unique: true,
-    },
-    nombre: {
-      type: String,
-      required: [true, "El nombre es requerido"],
-      trim: true,
-    },
-    apellidos: {
-      type: String,
-      required: [true, "Los apellidos son requeridos"],
-      trim: true,
-    },
-    email: {
-      type: String,
-      lowercase: true,
-      trim: true,
-      sparse: true,
-    },
-    telefono: {
-      type: String,
-      required: [true, "El teléfono es requerido"],
-      trim: true,
-    },
-    fechaNacimiento: {
-      type: Date,
-    },
-    foto: {
-      type: String,
-    },
-    notas: {
-      type: String,
-    },
-    activo: {
-      type: Boolean,
-      default: true,
-    },
+export const Member = {
+  async findById(id: string) {
+    const [member] = await db.select().from(members).where(eq(members.id, id));
+    return member;
   },
-  {
-    timestamps: true,
-  }
-);
 
-memberSchema.index({ numeroMiembro: 1 });
-memberSchema.index({ nombre: "text", apellidos: "text" });
-memberSchema.index({ telefono: 1 });
+  async findOne(query: { numeroMiembro?: string; email?: string }) {
+    if (query.numeroMiembro) {
+      const [member] = await db
+        .select()
+        .from(members)
+        .where(eq(members.numeroMiembro, query.numeroMiembro));
+      return member;
+    }
+    if (query.email) {
+      const [member] = await db.select().from(members).where(eq(members.email, query.email));
+      return member;
+    }
+    return null;
+  },
 
-memberSchema.virtual("nombreCompleto").get(function () {
-  return `${this.nombre} ${this.apellidos}`;
-});
+  async find(query: { activo?: boolean } = {}) {
+    if (query.activo !== undefined) {
+      return await db.select().from(members).where(eq(members.activo, query.activo));
+    }
+    return await db.select().from(members);
+  },
 
-memberSchema.set("toJSON", { virtuals: true });
-memberSchema.set("toObject", { virtuals: true });
+  async create(data: Omit<typeof members.$inferInsert, "id" | "createdAt" | "updatedAt">) {
+    const [member] = await db.insert(members).values(data).returning();
+    return member;
+  },
 
-export const Member = models.Member || model<IMember>("Member", memberSchema);
+  async findByIdAndUpdate(id: string, data: Partial<typeof members.$inferInsert>) {
+    const [member] = await db
+      .update(members)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(members.id, id))
+      .returning();
+    return member;
+  },
+
+  async findByIdAndDelete(id: string) {
+    const [member] = await db.delete(members).where(eq(members.id, id)).returning();
+    return member;
+  },
+
+  async countDocuments(query: any = {}) {
+    const result = await db.select().from(members);
+    return result.length;
+  },
+
+  async search(searchTerm: string) {
+    return await db
+      .select()
+      .from(members)
+      .where(
+        or(
+          ilike(members.nombre, `%${searchTerm}%`),
+          ilike(members.apellidos, `%${searchTerm}%`),
+          ilike(members.telefono, `%${searchTerm}%`)
+        )
+      );
+  },
+};

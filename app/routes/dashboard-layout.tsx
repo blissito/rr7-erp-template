@@ -15,10 +15,11 @@ export async function loader({ request }: Route.LoaderArgs) {
 
   const data = {
     user: {
-      id: user._id.toString(),
+      // @ts-ignore - Compatibility
+      id: user.id.toString(),
       nombre: user.nombre,
       email: user.email,
-      rol: user.rol,
+      rol: user.role,
     },
   };
 

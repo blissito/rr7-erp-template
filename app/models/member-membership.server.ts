@@ -1,72 +1,72 @@
-import { Schema, model, models, type Document, type Types } from "mongoose";
+import { db } from "~/db";
+import { memberMemberships, members, membershipTypes } from "~/db/schema";
+import { eq, and, gte } from "drizzle-orm";
 
-export interface IMemberMembership extends Document {
-  _id: Types.ObjectId;
-  memberId: Types.ObjectId;
-  membershipTypeId: Types.ObjectId;
+export interface IMemberMembership {
+  id: string;
+  memberId: string;
+  membershipTypeId: string;
   fechaInicio: Date;
   fechaFin: Date;
-  estado: "activa" | "vencida" | "cancelada";
-  montoPagado: number;
-  metodoPago: "efectivo" | "tarjeta" | "transferencia";
-  notas?: string;
+  activa: boolean;
   createdAt: Date;
-  createdBy: Types.ObjectId;
+  updatedAt: Date;
 }
 
-const memberMembershipSchema = new Schema<IMemberMembership>(
-  {
-    memberId: {
-      type: Schema.Types.ObjectId,
-      ref: "Member",
-      required: [true, "El miembro es requerido"],
-    },
-    membershipTypeId: {
-      type: Schema.Types.ObjectId,
-      ref: "MembershipType",
-      required: [true, "El tipo de membresía es requerido"],
-    },
-    fechaInicio: {
-      type: Date,
-      required: [true, "La fecha de inicio es requerida"],
-    },
-    fechaFin: {
-      type: Date,
-      required: [true, "La fecha de fin es requerida"],
-    },
-    estado: {
-      type: String,
-      enum: ["activa", "vencida", "cancelada"],
-      default: "activa",
-    },
-    montoPagado: {
-      type: Number,
-      required: [true, "El monto pagado es requerido"],
-      min: [0, "El monto no puede ser negativo"],
-    },
-    metodoPago: {
-      type: String,
-      enum: ["efectivo", "tarjeta", "transferencia"],
-      required: [true, "El método de pago es requerido"],
-    },
-    notas: {
-      type: String,
-    },
-    createdBy: {
-      type: Schema.Types.ObjectId,
-      ref: "User",
-      required: true,
-    },
+export const MemberMembership = {
+  async findOne(query: { memberId?: string; activa?: boolean }) {
+    let conditions = [];
+
+    if (query.memberId) {
+      conditions.push(eq(memberMemberships.memberId, query.memberId));
+    }
+    if (query.activa !== undefined) {
+      conditions.push(eq(memberMemberships.activa, query.activa));
+    }
+
+    if (conditions.length === 0) return null;
+
+    const [membership] = await db
+      .select()
+      .from(memberMemberships)
+      .where(conditions.length > 1 ? and(...conditions) : conditions[0]);
+
+    return membership;
   },
-  {
-    timestamps: true,
-  }
-);
 
-memberMembershipSchema.index({ memberId: 1 });
-memberMembershipSchema.index({ estado: 1 });
-memberMembershipSchema.index({ fechaFin: 1 });
+  async find(query: { memberId?: string } = {}) {
+    if (query.memberId) {
+      return await db
+        .select({
+          membership: memberMemberships,
+          membershipType: membershipTypes,
+        })
+        .from(memberMemberships)
+        .leftJoin(membershipTypes, eq(memberMemberships.membershipTypeId, membershipTypes.id))
+        .where(eq(memberMemberships.memberId, query.memberId));
+    }
+    return await db.select().from(memberMemberships);
+  },
 
-export const MemberMembership =
-  models.MemberMembership ||
-  model<IMemberMembership>("MemberMembership", memberMembershipSchema);
+  async create(data: Omit<typeof memberMemberships.$inferInsert, "id" | "createdAt" | "updatedAt">) {
+    const [membership] = await db.insert(memberMemberships).values(data).returning();
+    return membership;
+  },
+
+  async countDocuments(query: { activa?: boolean; fechaFin?: any } = {}) {
+    let result = await db.select().from(memberMemberships);
+
+    if (query.activa !== undefined) {
+      result = result.filter(m => m.activa === query.activa);
+    }
+    if (query.fechaFin?.$gte) {
+      result = result.filter(m => m.fechaFin >= query.fechaFin.$gte);
+    }
+
+    return result.length;
+  },
+
+  populate(field: string) {
+    return this;
+  },
+};

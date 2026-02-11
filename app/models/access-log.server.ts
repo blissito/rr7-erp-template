@@ -1,48 +1,55 @@
-import { Schema, model, models, type Document, type Types } from "mongoose";
+import { db } from "~/db";
+import { accessLogs, members } from "~/db/schema";
+import { eq, desc, and, gte, lte } from "drizzle-orm";
 
-export interface IAccessLog extends Document {
-  _id: Types.ObjectId;
-  memberId: Types.ObjectId;
-  tipo: "entrada" | "salida";
+export interface IAccessLog {
+  id: string;
+  memberId: string;
+  tipo: string;
   fecha: Date;
-  registradoPor: Types.ObjectId;
   notas?: string;
   createdAt: Date;
 }
 
-const accessLogSchema = new Schema<IAccessLog>(
-  {
-    memberId: {
-      type: Schema.Types.ObjectId,
-      ref: "Member",
-      required: [true, "El miembro es requerido"],
-    },
-    tipo: {
-      type: String,
-      enum: ["entrada", "salida"],
-      required: [true, "El tipo es requerido"],
-    },
-    fecha: {
-      type: Date,
-      default: Date.now,
-    },
-    registradoPor: {
-      type: Schema.Types.ObjectId,
-      ref: "User",
-      required: true,
-    },
-    notas: {
-      type: String,
-    },
+export const AccessLog = {
+  async find(query: any = {}) {
+    return await db
+      .select({
+        log: accessLogs,
+        member: members,
+      })
+      .from(accessLogs)
+      .leftJoin(members, eq(accessLogs.memberId, members.id))
+      .orderBy(desc(accessLogs.fecha))
+      .limit(query.limit || 100);
   },
-  {
-    timestamps: true,
-  }
-);
 
-accessLogSchema.index({ memberId: 1, fecha: -1 });
-accessLogSchema.index({ fecha: -1 });
-accessLogSchema.index({ tipo: 1, fecha: -1 });
+  async create(data: Omit<typeof accessLogs.$inferInsert, "id" | "createdAt">) {
+    const [log] = await db.insert(accessLogs).values(data).returning();
+    return log;
+  },
 
-export const AccessLog =
-  models.AccessLog || model<IAccessLog>("AccessLog", accessLogSchema);
+  async countDocuments(query: { fecha?: any } = {}) {
+    let result = await db.select().from(accessLogs);
+
+    if (query.fecha?.$gte && query.fecha?.$lte) {
+      result = result.filter(
+        log => log.fecha >= query.fecha.$gte && log.fecha <= query.fecha.$lte
+      );
+    }
+
+    return result.length;
+  },
+
+  populate(field: string) {
+    return this;
+  },
+
+  sort(field: string) {
+    return this;
+  },
+
+  limit(n: number) {
+    return this;
+  },
+};
